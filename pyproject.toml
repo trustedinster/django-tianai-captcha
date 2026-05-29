@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "django-tianai-captcha"
 version = "1.0.0"
 description = "天爱验证码(TAC) Django 插件 - 支持滑块、旋转、滑动还原、文字点选等多种行为验证码"
-readme = "README_DJANGO.md"
+readme = "README.md"
 license = {text = "MulanPSL-2.0"}
 requires-python = ">=3.8"
 authors = [
