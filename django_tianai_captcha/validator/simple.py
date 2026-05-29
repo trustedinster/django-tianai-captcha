@@ -162,9 +162,9 @@ class SimpleImageCaptchaValidator:
         bg_width = track_data.get("bgImageWidth", 590)
         bg_height = track_data.get("bgImageHeight", 360)
 
-        # 获取点击轨迹（类型为 CLICK 的轨迹）
+        # 获取点击轨迹（类型为 CLICK 的轨迹，不区分大小写）
         track_list = track_data.get("trackList", [])
-        click_tracks = [t for t in track_list if t.get("type") == "CLICK"]
+        click_tracks = [t for t in track_list if t.get("type", "").upper() == "CLICK"]
 
         if len(click_tracks) != len(click_order):
             return False

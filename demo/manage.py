@@ -6,6 +6,14 @@ import sys
 
 def main():
     """Run administrative tasks."""
+    # 将项目根目录和 demo 目录的父目录加入 Python 路径
+    demo_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(demo_dir)
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    if demo_dir not in sys.path:
+        sys.path.insert(0, os.path.dirname(demo_dir))
+
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'demo.settings')
     try:
         from django.core.management import execute_from_command_line

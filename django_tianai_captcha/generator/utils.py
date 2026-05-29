@@ -216,6 +216,43 @@ class CaptchaImageUtils:
         return result
 
     @staticmethod
+    def center_overlay_and_rotate_image_inplace(base_image, overlay, degrees):
+        """
+        将 overlay 旋转后居中放置到 base_image 上（原地修改 base_image）。
+
+        与 Java 版 CaptchaImageUtils.centerOverlayAndRotateImage 对应：
+        1. 先旋转 overlay（expand=True，保持完整图像）
+        2. 将旋转后的 overlay 居中放置到 base_image 上
+
+        Args:
+            base_image: 底图 (RGBA)，会被原地修改
+            overlay: 叠加图 (RGBA)
+            degrees: 旋转角度
+
+        Returns:
+            PIL.Image.Image: 修改后的 base_image
+        """
+        # 旋转 overlay（expand=True 保持旋转后完整图像不裁剪）
+        rotated = overlay.rotate(-degrees, resample=Image.BICUBIC, expand=True)
+
+        if rotated.mode != "RGBA":
+            rotated = rotated.convert("RGBA")
+
+        # 计算居中位置
+        bw, bh = base_image.size
+        cw, ch = rotated.size
+        paste_x = bw // 2 - cw // 2
+        paste_y = bh // 2 - ch // 2
+
+        # 创建临时透明图层用于叠加
+        temp = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+        temp.paste(rotated, (paste_x, paste_y))
+
+        # 使用 alpha_composite 合成后返回
+        result = Image.alpha_composite(base_image, temp)
+        return result
+
+    @staticmethod
     def split_image(image, position, direction="horizontal"):
         """
         分割图片。

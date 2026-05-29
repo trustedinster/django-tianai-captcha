@@ -1,7 +1,8 @@
 /**
  * 天爱验证码 Django 版演示平台 - 前端脚本
  *
- * 集成 tianai-captcha-web-sdk，提供验证码在线体验功能。
+ * 使用本地构建的 tianai-captcha-web-sdk，直接通过 window.TAC 初始化。
+ * 不使用 CDN 的 load.min.js，避免 track data 被加密编码。
  */
 
 // 验证码配置
@@ -16,26 +17,25 @@ const captchaConfig = {
         {
             btnUrl: "https://minio.tianai.cloud/public/captcha-btn/btn3.png",
             bgUrl: "https://minio.tianai.cloud/public/captcha-btn/btn3-bg.jpg",
-            logoUrl: "https://minio.tianai.cloud/public/static/captcha/images/logo.png",
+            logoUrl: null,
             moveTrackMaskBgColor: "#f7b645",
             moveTrackMaskBorderColor: "#ef9c0d"
         },
         {
             btnUrl: "https://minio.tianai.cloud/public/captcha-btn/btn2.png",
             bgUrl: "https://minio.tianai.cloud/public/captcha-btn/btn2-bg.jpg",
-            logoUrl: "https://minio.tianai.cloud/public/static/captcha/images/logo.png",
+            logoUrl: null,
             moveTrackMaskBgColor: "#89d2ff",
             moveTrackMaskBorderColor: "#32a9ff"
         },
         {
             btnUrl: "https://minio.tianai.cloud/public/captcha-btn/btn4.png",
             bgUrl: "https://minio.tianai.cloud/public/captcha-btn/btn4-bg.jpg",
-            logoUrl: "https://minio.tianai.cloud/public/static/captcha/images/logo.png",
+            logoUrl: null,
             moveTrackMaskBgColor: "#cbd3d0",
             moveTrackMaskBorderColor: "#b6bdba"
         }
-    ],
-    defaultLogo: "https://minio.tianai.cloud/public/static/captcha/images/logo.png"
+    ]
 };
 
 // 统计数据
@@ -47,6 +47,7 @@ const stats = {
 
 // 验证码实例
 let captchaInstance = null;
+let isLoadingCaptcha = false;
 
 $(document).ready(function () {
     // 验证码类型切换事件
@@ -86,52 +87,55 @@ $(document).ready(function () {
  * 加载验证码
  */
 function loadCaptcha() {
+    // 防抖：如果正在加载，忽略重复点击
+    if (isLoadingCaptcha) return;
+    isLoadingCaptcha = true;
+
     let genCaptchaUrl = captchaConfig.baseUrls.genRandom;
-    let windowStyle = { logoUrl: captchaConfig.defaultLogo };
+    let windowStyle;
 
     if (captchaConfig.currentType !== "RANDOM") {
         genCaptchaUrl = captchaConfig.baseUrls.genByType + captchaConfig.currentType;
-
         // 随机选择样式
         windowStyle = captchaConfig.windowStyles[Math.floor(Math.random() * captchaConfig.windowStyles.length)];
     } else {
         windowStyle = captchaConfig.windowStyles[0];
     }
 
-    windowStyle.logoUrl = captchaConfig.defaultLogo;
-
     // 隐藏结果消息
     $('#result-message').hide();
 
-    // 加载并初始化验证码
-    window.loadTAC({
-        scriptUrls: [
-            "//minio.tianai.cloud/public/static/tac/js/tac.min.js?t=20260324-2"
-        ],
-        cssUrls: [
-            "//minio.tianai.cloud/public/static/tac/css/tac.css?t=20260324-2"
-        ]
-    }, {
-        requestCaptchaDataUrl: genCaptchaUrl,
-        validCaptchaUrl: captchaConfig.baseUrls.validate,
-        bindEl: "#captcha-div",
-        validSuccess: handleCaptchaSuccess,
-        validFail: handleCaptchaFail,
-        btnRefreshFun: function (el, tac) {
-            tac.reloadCaptcha();
-        },
-        btnCloseFun: function (el, tac) {
-            tac.destroyWindow();
-            captchaInstance = null;
-        }
-    })
-    .then(function (tac) {
+    // 销毁现有验证码实例
+    if (captchaInstance) {
+        captchaInstance.destroyWindow();
+        captchaInstance = null;
+    }
+
+    // 使用本地构建的 TAC SDK 直接初始化
+    try {
+        var config = {
+            requestCaptchaDataUrl: genCaptchaUrl,
+            validCaptchaUrl: captchaConfig.baseUrls.validate,
+            bindEl: "#captcha-div",
+            validSuccess: handleCaptchaSuccess,
+            validFail: handleCaptchaFail,
+            btnRefreshFun: function (el, tac) {
+                tac.reloadCaptcha();
+            },
+            btnCloseFun: function (el, tac) {
+                tac.destroyWindow();
+                captchaInstance = null;
+            }
+        };
+
+        var tac = new window.TAC(config, windowStyle);
         captchaInstance = tac.init();
-    })
-    .catch(function (error) {
+    } catch (error) {
         console.error("验证码加载失败:", error);
         showNotification("验证码加载失败，请重试", "error");
-    });
+    } finally {
+        isLoadingCaptcha = false;
+    }
 }
 
 /**

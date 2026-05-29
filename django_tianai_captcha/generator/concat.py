@@ -5,9 +5,11 @@
 
 工作原理：
 1. 加载一张背景图
-2. 在水平方向上选择一个分割点，将背景图上半部分沿该点分割为左右两部分
-3. 交换左右两部分的位置
-4. 用户需要滑动使图片还原为原始顺序
+2. 在垂直方向上选择一个分割点，将背景图分为上方大块和下方小条
+3. 在上方大块水平方向上选择一个分割点分为左右两部分
+4. 交换上方大块的左右部分
+5. 重新拼接为打乱后的背景图
+6. 用户需要滑动使图片还原为原始顺序
 
 与滑块验证码不同，滑动还原没有缺口和滑块拼图，
 而是将背景图本身打乱，用户需要还原。
@@ -40,12 +42,15 @@ class StandardConcatImageCaptchaGenerator(ImageCaptchaGenerator):
         """
         生成滑动还原验证码图片。
 
-        流程：
+        流程（与 Java 版保持一致）：
         1. 加载背景图
-        2. 在垂直方向选择分割点将图片分为上下两部分
-        3. 在上半部分水平方向选择分割点分为左右两部分
-        4. 交换上半部分的左右部分
-        5. 重新拼接为打乱后的背景图
+        2. 在垂直方向选择分割点，将图片分为上方大块和下方小条
+           - Java 版 splitImage(randomY, true, bgImage) 中 direction=true 表示水平切割
+           - splitImageArr[0] 是上方大块 (height - randomY 高度)
+           - splitImageArr[1] 是下方小条 (randomY 高度)
+        3. 在上方大块水平方向选择分割点分为左右两部分
+        4. 交换上方大块的左右部分（右+左）
+        5. 垂直拼接：交换后的上方大块 + 下方小条
         6. 构建并返回验证码信息
 
         Returns:
@@ -63,46 +68,58 @@ class StandardConcatImageCaptchaGenerator(ImageCaptchaGenerator):
         bg_width, bg_height = bg_image.size
 
         # 2. 计算随机分割点
-        # 水平分割点（X）：在 1/8 到 4/5 宽度之间
-        random_x = random.randint(bg_width // 8, int(bg_width * 4 / 5))
-        # 垂直分割点（Y）：在 1/4 到 3/4 高度之间
-        random_y = random.randint(bg_height // 4, int(bg_height * 3 / 4))
+        # 与 Java 版保持一致
+        # spacingY = bgImage.getHeight() / 4
+        # randomY = randomInt(spacingY, bgImage.getHeight() - spacingY)
+        spacing_y = bg_height // 4
+        random_y = random.randint(spacing_y, bg_height - spacing_y)
 
-        # 3. 垂直分割为上下两部分
-        top_part, bottom_part = CaptchaImageUtils.split_image(bg_image, random_y, direction="horizontal")
+        # spacingX = bgImage.getWidth() / 8
+        # randomX = randomInt(spacingX, bgImage.getWidth() - bgImage.getWidth() / 5)
+        spacing_x = bg_width // 8
+        random_x = random.randint(spacing_x, bg_width - bg_width // 5)
 
-        # 4. 水平分割上半部分为左右两部分
-        top_left, top_right = CaptchaImageUtils.split_image(top_part, random_x, direction="vertical")
+        # 3. 垂直分割为上方大块和下方小条
+        # Java版: splitImage(randomY, true, bgImage) → [topBigPart, bottomSmallStrip]
+        # topBigPart 高度 = bg_height - random_y
+        # bottomSmallStrip 高度 = random_y
+        top_big_part = bg_image.crop((0, 0, bg_width, bg_height - random_y))
+        bottom_strip = bg_image.crop((0, bg_height - random_y, bg_width, bg_height))
 
-        # 5. 交换上半部分的左右位置（右+左）
+        # 4. 水平分割上方大块为左右两部分
+        # Java版: splitImage(randomX, false, topBigPart) → [leftPart, rightPart]
+        # direction=false 表示垂直切割（左右切）
+        top_left = top_big_part.crop((0, 0, random_x, top_big_part.height))
+        top_right = top_big_part.crop((random_x, 0, top_big_part.width, top_big_part.height))
+
+        # 5. 交换上方大块的左右位置（右+左）
+        # Java版: concatImage(true, totalWidth, height, rightPart, leftPart)
+        # direction=true 表示水平拼接
         swapped_top = CaptchaImageUtils.concat_images(top_right, top_left, direction="horizontal")
 
-        # 6. 垂直拼接：交换后的上半部分 + 下半部分
-        shuffled_bg = CaptchaImageUtils.concat_images(swapped_top, bottom_part, direction="vertical")
+        # 6. 垂直拼接：交换后的上方大块 + 下方小条
+        # Java版: concatImage(false, width, totalHeight, sliderImage, bottomPart)
+        shuffled_bg = CaptchaImageUtils.concat_images(swapped_top, bottom_strip, direction="vertical")
 
         # 7. 转换为 Base64
         bg_base64 = CaptchaImageUtils.image_to_base64(shuffled_bg, format=background_format)
 
-        # 滑动还原的 templateImage 就是打乱后的背景图的滑块轨道
-        # 创建一个与背景同宽的透明图片作为模板
-        template_image = CaptchaImageUtils.create_transparent_image(bg_width, bg_height)
-        template_base64 = CaptchaImageUtils.image_to_base64(template_image, format=template_format)
-
         # 8. 构建返回数据
+        # 前端 concat.js 读取 data.data.randomY:
+        #   var height = ((backgroundImageHeight - data.data.data.randomY) / backgroundImageHeight) * 180;
+        # 所以 randomY 必须放在 data.randomY 路径下
         result = {
             "backgroundImage": bg_base64,
-            "templateImage": template_base64,
+            "templateImage": None,
             "backgroundImageWidth": bg_width,
             "backgroundImageHeight": bg_height,
-            "templateImageWidth": bg_width,
-            "templateImageHeight": bg_height,
+            "templateImageWidth": None,
+            "templateImageHeight": None,
             "randomX": random_x,
             "type": CONCAT,
             "tolerant": 0.05,
             "data": {
-                "viewData": {
-                    "randomY": random_y,
-                },
+                "randomY": random_y,
             },
         }
 

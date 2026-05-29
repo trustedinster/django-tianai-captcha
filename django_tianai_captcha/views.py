@@ -5,9 +5,9 @@ Django 视图模块。
 与 Java 版默认接口规范保持一致，可无缝对接 tianai-captcha-web-sdk 前端。
 
 接口规范：
-- GET  /captcha/generate  - 生成验证码
-- POST /captcha/check     - 校验验证码
-- POST /captcha/verify    - 二次验证
+- GET/POST /captcha/generate  - 生成验证码（SDK 使用 POST）
+- POST     /captcha/check    - 校验验证码
+- POST     /captcha/verify   - 二次验证
 """
 
 import json
@@ -22,14 +22,16 @@ from .conf import get_captcha_application, CAPTCHA_TYPES, SLIDER
 logger = logging.getLogger(__name__)
 
 
-@require_http_methods(["GET"])
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
 def generate_captcha(request):
     """
     生成验证码接口。
 
     与 Java 版默认生成接口规范对应，可无缝对接 tianai-captcha-web-sdk。
+    tianai-captcha-web-sdk 使用 POST 方法请求此接口。
 
-    Query Parameters:
+    Query Parameters (GET) / Request Body (POST):
         type (str, optional): 验证码类型，默认使用配置的 DEFAULT_TYPE
 
     Returns:
@@ -44,7 +46,15 @@ def generate_captcha(request):
                 - backgroundImageWidth/Height: 背景图尺寸
                 - templateImageWidth/Height: 模板图尺寸
     """
-    captcha_type = request.GET.get("type", None)
+    # 兼容 GET 和 POST 两种方式获取 type 参数
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body) if request.body else {}
+        except (json.JSONDecodeError, ValueError):
+            body = {}
+        captcha_type = body.get("type", request.GET.get("type", None))
+    else:
+        captcha_type = request.GET.get("type", None)
 
     # 验证类型参数
     if captcha_type and captcha_type not in CAPTCHA_TYPES:
@@ -101,7 +111,11 @@ def check_captcha(request):
         }, status=400)
 
     captcha_id = body.get("id")
-    track_data = body.get("track")
+    # tianai-captcha-web-sdk 发送的轨迹数据 key 为 "data"，
+    # Java 版 MatchParam 使用 "track" 作为 key。
+    # 此处兼容两种 key 名称，优先使用 "data"（SDK 默认），回退到 "track"（Java 规范）。
+    # 注意：使用 isinstance 检查而非 truthy 检查，因为空字典 {} 是 falsy 但可能是有效数据
+    track_data = body.get("data") if isinstance(body.get("data"), dict) else body.get("track")
 
     if not captcha_id:
         return JsonResponse({

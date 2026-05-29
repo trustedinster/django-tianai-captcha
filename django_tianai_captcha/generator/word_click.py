@@ -55,7 +55,7 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
 
     def __init__(self):
         self._resource_manager = None
-        self._click_img_width = 100
+        self._click_img_width = 45
         self._check_click_count = 4
         self._interference_count = 2
         self._font_path = None
@@ -131,7 +131,7 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
         # 3. 在背景图上绘制文字
         click_definitions = []
         img_size = self._click_img_width
-        font_size = 30
+        font_size = 22
 
         # 所有文字（目标+干扰）
         all_chars = list(check_chars) + list(interference_chars)
@@ -205,7 +205,7 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
             "templateImageWidth": len(check_chars) * 48,
             "templateImageHeight": 40,
             "type": WORD_IMAGE_CLICK,
-            "tolerant": 0.05,
+            "tolerant": 0.08,
             "data": {
                 "clickDefinitions": click_definitions,
             },

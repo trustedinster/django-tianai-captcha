@@ -90,18 +90,17 @@ class StandardRotateImageCaptchaGenerator(ImageCaptchaGenerator):
         random_x = random.randint(20, bg_width - 20)
         degree = 360 - (random_x / (bg_width / 360))
 
-        # 8. 创建旋转后的图片
-        # 旋转后的图片放在中心位置
-        rotate_image = CaptchaImageUtils.center_overlay_and_rotate_image(
-            CaptchaImageUtils.create_transparent_image(fixed_width, fixed_height),
-            cut_image,
-            0, 0,
-            degree,
+        # 8. 创建旋转后的模板图片
+        # 与 Java 版保持一致：画布宽度为 cutImage 宽度，高度为背景图高度
+        # 旋转 cutImage 后居中放置到透明画布上
+        matrix_template = CaptchaImageUtils.create_transparent_image(cut_image.width, bg_height)
+        matrix_template = CaptchaImageUtils.center_overlay_and_rotate_image_inplace(
+            matrix_template, cut_image, degree
         )
 
         # 9. 转换为 Base64
         bg_base64 = CaptchaImageUtils.image_to_base64(bg_image, format=background_format)
-        rotate_base64 = CaptchaImageUtils.image_to_base64(rotate_image, format=template_format)
+        rotate_base64 = CaptchaImageUtils.image_to_base64(matrix_template, format=template_format)
 
         # 10. 构建返回数据
         result = {
@@ -109,8 +108,8 @@ class StandardRotateImageCaptchaGenerator(ImageCaptchaGenerator):
             "templateImage": rotate_base64,
             "backgroundImageWidth": bg_width,
             "backgroundImageHeight": bg_height,
-            "templateImageWidth": fixed_width,
-            "templateImageHeight": fixed_height,
+            "templateImageWidth": cut_image.width,
+            "templateImageHeight": bg_height,
             "randomX": random_x,
             "type": ROTATE,
             "tolerant": 0.03,

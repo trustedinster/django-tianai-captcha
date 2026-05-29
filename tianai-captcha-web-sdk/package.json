@@ -21,6 +21,7 @@
     "html-webpack-plugin": "^5.5.3",
     "javascript-obfuscator": "^4.1.0",
     "mini-css-extract-plugin": "^2.7.6",
+    "sass": "^1.100.0",
     "sass-loader": "^13.3.2",
     "style-loader": "^3.3.3",
     "terser-webpack-plugin": "^5.3.10",
