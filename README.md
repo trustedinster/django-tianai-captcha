@@ -335,4 +335,4 @@ django_tianai_captcha/
 
 ## 许可证
 
-MulanPSL-2.0
+Apache-2.0 license
