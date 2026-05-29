@@ -53,9 +53,14 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
     - interference_count: 干扰文字数量，默认 2
     """
 
+    # 与 Java 版 FontWrapper.DEFAULT_FONT_SIZE = 70 对应
+    DEFAULT_FONT_SIZE = 70
+    # 字体大小缩放基准宽度（与 Java 版一致）
+    FONT_SCALE_BASE_WIDTH = 600
+
     def __init__(self):
         self._resource_manager = None
-        self._click_img_width = 45
+        self._click_img_width = 100
         self._check_click_count = 4
         self._interference_count = 2
         self._font_path = None
@@ -129,9 +134,13 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
         interference_chars = selected_chars[self._check_click_count:]
 
         # 3. 在背景图上绘制文字
+        # 与 Java 版字体大小计算逻辑一致：
+        # factor = bgWidth / 600.0, font_size = 70 * factor
         click_definitions = []
-        img_size = self._click_img_width
-        font_size = 22
+        factor = bg_width / self.FONT_SCALE_BASE_WIDTH
+        font_size = int(self.DEFAULT_FONT_SIZE * factor)
+        # clickImgWidth = fontSize * 10/7（与 Java 版一致）
+        img_size = int(font_size * 10 / 7)
 
         # 所有文字（目标+干扰）
         all_chars = list(check_chars) + list(interference_chars)
@@ -185,9 +194,10 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
         draw = ImageDraw.Draw(bg_image)
         CaptchaImageUtils.draw_oval(draw, bg_width, bg_height, count=3)
 
-        # 5. 生成提示图片
+        # 5. 生成提示图片（字体大小与 Java 版一致）
+        tip_font_size = int(font_size * 0.4)  # 提示图字体稍小，约 28px
         tip_base64 = CaptchaImageUtils.gen_tip_image(
-            check_chars, font_path=font_path
+            check_chars, font_path=font_path, font_size=tip_font_size
         )
 
         # 6. 转换为 Base64
@@ -202,8 +212,8 @@ class StandardWordClickImageCaptchaGenerator(ImageCaptchaGenerator):
             "templateImage": tip_base64,
             "backgroundImageWidth": bg_width,
             "backgroundImageHeight": bg_height,
-            "templateImageWidth": len(check_chars) * 48,
-            "templateImageHeight": 40,
+            "templateImageWidth": len(check_chars) * (tip_font_size + 4),
+            "templateImageHeight": tip_font_size + 16,
             "type": WORD_IMAGE_CLICK,
             "tolerant": 0.08,
             "data": {

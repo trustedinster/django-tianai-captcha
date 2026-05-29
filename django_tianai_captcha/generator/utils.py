@@ -383,14 +383,7 @@ class CaptchaImageUtils:
         Returns:
             str: 提示图片的 Base64 编码
         """
-        text = "".join(words)
-        if width is None:
-            width = len(words) * font_size * 2
-
-        result = Image.new("RGBA", (width, height), (255, 255, 255, 255))
-        draw = ImageDraw.Draw(result)
-
-        # 加载字体
+        # 加载字体（先加载以计算实际文字尺寸）
         try:
             if font_path:
                 font = ImageFont.truetype(font_path, font_size)
@@ -402,12 +395,26 @@ class CaptchaImageUtils:
             except Exception:
                 font = ImageFont.load_default()
 
-        # 绘制文字
+        # 根据字体大小自动计算图片尺寸
+        tmp_img = Image.new("RGBA", (1, 1))
+        tmp_draw = ImageDraw.Draw(tmp_img)
         total_text_w = 0
+        max_text_h = 0
         for word in words:
-            bbox = draw.textbbox((0, 0), word, font=font)
+            bbox = tmp_draw.textbbox((0, 0), word, font=font)
             total_text_w += bbox[2] - bbox[0]
+            max_text_h = max(max_text_h, bbox[3] - bbox[1])
 
+        if width is None:
+            width = total_text_w + font_size  # 左右留边距
+        if height <= 40:
+            # 自动高度：字体高度 + 上下留白
+            height = max_text_h + int(font_size * 0.6)
+
+        result = Image.new("RGBA", (width, height), (255, 255, 255, 255))
+        draw = ImageDraw.Draw(result)
+
+        # 绘制文字
         start_x = (width - total_text_w) // 2
         current_x = start_x
 
