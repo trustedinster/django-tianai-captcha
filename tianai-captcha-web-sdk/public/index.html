@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+</head>
+
+<body>
+<!-- 验证码存放的div块 -->
+<div id="captcha-box"></div>
+
+<script>
+    $(function () {
+        // 样式配置
+        const config = {
+            requestCaptchaDataUrl: "http://localhost:8080/gen?type=WORD_IMAGE_CLICK",
+            validCaptchaUrl: "http://localhost:8080/check",
+            bindEl: "#captcha-box"
+        }
+        const style = {
+            // logoUrl : null
+
+        }
+        const captcha = new TAC(config, style);
+        captcha.init();
+    });
+
+</script>
+</body>
+
+</html>
