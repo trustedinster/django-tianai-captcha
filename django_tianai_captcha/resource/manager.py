@@ -144,11 +144,26 @@ class DefaultBuiltInResources:
         """
         from ..conf import SLIDER, ROTATE, CONCAT, WORD_IMAGE_CLICK
 
-        # 添加默认背景图片
-        resource_image = "META-INF/cut-image/resource/1.jpg"
-        for captcha_type in [SLIDER, ROTATE, CONCAT, WORD_IMAGE_CLICK]:
-            resource = Resource(type="classpath", data=resource_image)
-            resource_store.add_resource(captcha_type, resource)
+        # 扫描资源目录，自动注册所有背景图片
+        resource_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "resources", "META-INF", "cut-image", "resource"
+        )
+        image_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.webp')
+        image_files = sorted([
+            f for f in os.listdir(resource_dir)
+            if f.lower().endswith(image_extensions)
+        ])
+
+        if not image_files:
+            logger.warning("No background images found in %s", resource_dir)
+        else:
+            for filename in image_files:
+                resource_image = f"META-INF/cut-image/resource/{filename}"
+                for captcha_type in [SLIDER, ROTATE, CONCAT, WORD_IMAGE_CLICK]:
+                    resource = Resource(type="classpath", data=resource_image)
+                    resource_store.add_resource(captcha_type, resource)
+            logger.info("Registered %d background images for each captcha type", len(image_files))
 
         # 添加滑块模板
         for template_name in ["slider_1", "slider_2"]:
