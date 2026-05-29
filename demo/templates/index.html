@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="tianai-captcha Django 版验证码在线体验平台，支持滑块、旋转、滑动还原、文字点选等多种验证码类型">
+    <meta name="keywords" content="开源验证码,行为式验证码,滑动拼图验证码,点选验证码,Django验证码,tianai-captcha">
+    <title>天爱验证码(TAC) Django 版 - 在线体验</title>
+    <link rel="icon" href="/static/tac/images/icon.png" type="image/png">
+    <link rel="stylesheet" href="/static/demo/css/index.css">
+    <link rel="stylesheet" href="/static/tac/css/tac.css">
+    <script src="//minio.tianai.cloud/public/static/jquery/jquery.min.js"></script>
+    <script src="/static/tac/js/tac.min.js"></script>
+</head>
+<body>
+<div class="bg"></div>
+
+<header class="site-header">
+    <div class="container">
+        <h1 class="site-title">天爱验证码(TAC) Django 版在线体验</h1>
+        <p class="site-subtitle">基于 Django 的行为验证码插件 · 兼容 tianai-captcha-web-sdk</p>
+    </div>
+</header>
+
+<main class="container main-content">
+    <section class="captcha-demo">
+        <!-- 验证码类型选择导航 -->
+        <nav class="captcha-nav">
+            <ul class="captcha-types">
+                <li class="captcha-type captcha-type-active" data-captcha-type="RANDOM">随机</li>
+                <li class="captcha-type" data-captcha-type="SLIDER">滑块验证</li>
+                <li class="captcha-type" data-captcha-type="ROTATE">旋转验证</li>
+                <li class="captcha-type" data-captcha-type="CONCAT">滑动还原</li>
+                <li class="captcha-type" data-captcha-type="WORD_IMAGE_CLICK">文字点选</li>
+            </ul>
+        </nav>
+
+        <!-- 验证码展示和登录表单区域 -->
+        <div class="demo-content">
+            <div class="form-container">
+                <div class="login-form">
+                    <h2 class="form-title" id="form-title">验证码体验(随机)</h2>
+                    <div class="form-group">
+                        <label class="field-label">用户名</label>
+                        <span class="field-value">天爱验证码</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="field-label">密码</label>
+                        <span class="field-value">*********</span>
+                    </div>
+                    <button id="login-btn" class="verify-button">点击验证</button>
+                    <div id="captcha-div" class="captcha-container"></div>
+                    <div id="result-message" class="result-message" style="display:none;"></div>
+                </div>
+            </div>
+
+            <div class="info-container">
+                <div class="info-card">
+                    <h3 class="info-title">支持类型</h3>
+                    <ul class="info-list">
+                        <li><span class="info-badge">SLIDER</span> 滑块验证码</li>
+                        <li><span class="info-badge">ROTATE</span> 旋转验证码</li>
+                        <li><span class="info-badge">CONCAT</span> 滑动还原验证码</li>
+                        <li><span class="info-badge">WORD</span> 文字点选验证码</li>
+                    </ul>
+                </div>
+                <div class="info-card">
+                    <h3 class="info-title">技术特性</h3>
+                    <ul class="info-list">
+                        <li>Django 原生集成</li>
+                        <li>支持本地/Redis 缓存</li>
+                        <li>轨迹行为反机器人检测</li>
+                        <li>二次验证支持</li>
+                        <li>频率限制中间件</li>
+                        <li>兼容 tianai-captcha-web-sdk</li>
+                    </ul>
+                </div>
+                <div class="info-card info-card-links">
+                    <h3 class="info-title">相关链接</h3>
+                    <a href="https://github.com/trustedinster/django-tianai-captcha" target="_blank" class="info-link">GitHub 仓库</a>
+                    <a href="https://github.com/dromara/tianai-captcha" target="_blank" class="info-link">Java 原版</a>
+                    <a href="http://doc.captcha.tianai.cloud" target="_blank" class="info-link">开发文档</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 统计区域 -->
+    <section class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">总验证次数</div>
+            </div>
+            <div class="stat-card stat-success">
+                <div class="stat-value" id="stat-success">0</div>
+                <div class="stat-label">验证成功</div>
+            </div>
+            <div class="stat-card stat-fail">
+                <div class="stat-value" id="stat-fail">0</div>
+                <div class="stat-label">验证失败</div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer class="site-footer">
+    <div class="container">
+        <p>django-tianai-captcha v1.0.0 · 天爱验证码 Django 插件</p>
+    </div>
+</footer>
+
+<!-- 通知提示 -->
+<div class="notification-toast" id="notification"></div>
+
+<script src="/static/demo/js/index.js"></script>
+</body>
+</html>
