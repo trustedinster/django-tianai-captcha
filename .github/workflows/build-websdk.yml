@@ -1,0 +1,70 @@
+name: Build WebSDK
+
+on:
+  push:
+    paths:
+      - 'tianai-captcha-web-sdk/**'
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: tianai-captcha-web-sdk
+        run: npm ci
+
+      - name: Build production bundle
+        working-directory: tianai-captcha-web-sdk
+        run: npm run buildprod
+
+      - name: Sync built assets to static directory
+        run: |
+          STATIC_DIR="django_tianai_captcha/static/django_tianai_captcha/tac"
+          DIST_DIR="tianai-captcha-web-sdk/dist"
+
+          mkdir -p "${STATIC_DIR}/js" "${STATIC_DIR}/css" "${STATIC_DIR}/images"
+
+          cp "${DIST_DIR}/tac.min.js" "${STATIC_DIR}/js/tac.min.js"
+
+          if [ -f "${DIST_DIR}/styles/tac.css" ]; then
+            cp "${DIST_DIR}/styles/tac.css" "${STATIC_DIR}/css/tac.css"
+          elif [ -f "${DIST_DIR}/tac.css" ]; then
+            cp "${DIST_DIR}/tac.css" "${STATIC_DIR}/css/tac.css"
+          fi
+
+          if [ -d "${DIST_DIR}/images" ]; then
+            cp -r "${DIST_DIR}/images/"* "${STATIC_DIR}/images/" 2>/dev/null || true
+          fi
+
+          echo "=== Synced files ==="
+          find "${STATIC_DIR}" -type f | sort
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if git diff --quiet django_tianai_captcha/static/; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push updated static assets
+        if: steps.check_changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add django_tianai_captcha/static/
+          git commit -m "chore: auto-update WebSDK static assets [skip ci]"
+          git push
