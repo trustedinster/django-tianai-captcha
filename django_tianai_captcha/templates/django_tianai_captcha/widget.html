@@ -1,38 +1,38 @@
+{% load static %}
 <div id="captcha-box-{{ widget.attrs.id }}" class="django-tianai-captcha-box" data-type="{{ widget.captcha_type }}">
     <div class="captcha-container"></div>
     <input type="hidden" name="{{ widget.name }}" id="{{ widget.attrs.id }}" value="">
 </div>
+<link rel="stylesheet" href="{% static 'django_tianai_captcha/tac/css/tac.css' %}">
+<script src="{% static 'django_tianai_captcha/tac/js/tac.min.js' %}"></script>
 <script>
 (function() {
     var box = document.getElementById('captcha-box-{{ widget.attrs.id }}');
     var input = document.getElementById('{{ widget.attrs.id }}');
     var captchaType = box.getAttribute('data-type') || 'SLIDER';
 
-    if (window.initTAC) {
-        var config = {
-            requestCaptchaDataUrl: "/captcha/generate?type=" + captchaType,
-            validCaptchaUrl: "/captcha/check",
-            bindEl: "#" + box.id + " .captcha-container",
-            validSuccess: function(res, c, tac) {
-                tac.destroyWindow();
-                input.value = JSON.stringify(res.data || {});
-                // 触发 change 事件
-                var event = new Event('change', { bubbles: true });
-                input.dispatchEvent(event);
-            },
-            validFail: function(res, c, tac) {
-                tac.reloadCaptcha();
-            },
-            btnRefreshFun: function(el, tac) {
-                tac.reloadCaptcha();
-            },
-            btnCloseFun: function(el, tac) {
-                tac.destroyWindow();
-            }
-        };
-        window.initTAC("/static/django_tianai_captcha/tac", config).then(function(tac) {
-            tac.init();
-        });
-    }
+    var config = {
+        requestCaptchaDataUrl: "/captcha/generate?type=" + captchaType,
+        validCaptchaUrl: "/captcha/check",
+        bindEl: "#" + box.id + " .captcha-container",
+        validSuccess: function(res, c, tac) {
+            tac.destroyWindow();
+            input.value = JSON.stringify(res.data || {});
+            var event = new Event('change', { bubbles: true });
+            input.dispatchEvent(event);
+        },
+        validFail: function(res, c, tac) {
+            tac.reloadCaptcha();
+        },
+        btnRefreshFun: function(el, tac) {
+            tac.reloadCaptcha();
+        },
+        btnCloseFun: function(el, tac) {
+            tac.destroyWindow();
+        }
+    };
+    var style = {};
+    var tac = new window.TAC(config, style);
+    tac.init();
 })();
 </script>

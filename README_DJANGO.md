@@ -4,8 +4,8 @@
 
 ## 简介
 
-django-tianai-captcha 是 [tianai-captcha](https://github.com/dromara/tianai-captcha) 的 Django 版本实现，
-支持多种行为验证码类型，可无缝对接 tianai-captcha-web-sdk 前端。
+django-tianai-captcha 是天爱验证码的 Django 版本实现，支持多种行为验证码类型。
+内置 tianai-captcha-web-sdk 前端 JS，安装即用，无需额外构建前端资源。
 
 ### 支持的验证码类型
 
@@ -18,8 +18,6 @@ django-tianai-captcha 是 [tianai-captcha](https://github.com/dromara/tianai-cap
 
 ## 安装
 
-### 使用 pip
-
 ```bash
 pip install django-tianai-captcha
 
@@ -27,21 +25,10 @@ pip install django-tianai-captcha
 pip install django-tianai-captcha[redis]
 ```
 
-### 使用 uv
+或使用 uv：
 
 ```bash
 uv pip install django-tianai-captcha
-
-# 如果需要 Redis 缓存后端
-uv pip install django-tianai-captcha[redis]
-```
-
-### 从源码安装
-
-```bash
-git clone -b django-plugin https://github.com/trustedinster/django-tianai-captcha.git
-cd django-tianai-captcha
-uv pip install -e .
 ```
 
 ## 快速开始
@@ -120,7 +107,7 @@ CAPTCHA = {
 
 #### 生成验证码
 
-支持 GET 和 POST 两种请求方式（tianai-captcha-web-sdk 默认使用 POST）：
+支持 GET 和 POST 两种请求方式（前端 SDK 默认使用 POST）：
 
 ```
 GET  /captcha/generate
@@ -157,35 +144,12 @@ POST /captcha/check
 Content-Type: application/json
 ```
 
-校验请求体支持两种格式，SDK 发送 `"data"` key，Java 规范使用 `"track"` key，两种均兼容：
-
-**格式一（tianai-captcha-web-sdk 默认）：**
+请求体支持 `"data"` 和 `"track"` 两种 key（兼容处理，优先读取 `"data"`）：
 
 ```json
 {
     "id": "验证码ID",
     "data": {
-        "bgImageWidth": 590,
-        "bgImageHeight": 360,
-        "templateImageWidth": 110,
-        "templateImageHeight": 360,
-        "startTime": 1234567890,
-        "stopTime": 1234567900,
-        "trackList": [
-            {"x": 0.0, "y": 0.0, "t": 0, "type": "down"},
-            {"x": 1.5, "y": 0.2, "t": 16, "type": "move"},
-            {"x": 50.0, "y": 0.5, "t": 500, "type": "up"}
-        ]
-    }
-}
-```
-
-**格式二（Java 版规范）：**
-
-```json
-{
-    "id": "验证码ID",
-    "track": {
         "bgImageWidth": 590,
         "bgImageHeight": 360,
         "templateImageWidth": 110,
@@ -232,30 +196,20 @@ Content-Type: application/json
 
 ### 5. 前端对接
 
-#### 方式一：使用 tianai-captcha-web-sdk（推荐）
+本包内置了 tianai-captcha-web-sdk 前端资源（JS/CSS），安装后可直接在页面中使用，无需额外下载或构建。
 
-从 [tianai-captcha-web-sdk](https://github.com/dromara/tianai-captcha) 构建 SDK 并本地部署：
+#### 在模板中引入 SDK
 
-```bash
-# 克隆 SDK 源码
-git clone https://github.com/dromara/tianai-captcha.git
-cd tianai-captcha/tianai-captcha-web-sdk
-
-# 安装依赖并构建
-npm install
-npm run buildprod
-
-# 将构建产物部署到 Django 静态目录
-# dist/tac.min.js → your_app/static/tac/js/tac.min.js
-# dist/tac.css   → your_app/static/tac/css/tac.css
+```html
+{% load static %}
+<link rel="stylesheet" href="{% static 'django_tianai_captcha/tac/css/tac.css' %}">
+<script src="{% static 'django_tianai_captcha/tac/js/tac.min.js' %}"></script>
 ```
 
-前端页面中直接使用 `TAC` 类初始化：
+#### 初始化验证码
 
 ```html
 <div id="captcha-box"></div>
-<link rel="stylesheet" href="/static/tac/css/tac.css">
-<script src="/static/tac/js/tac.min.js"></script>
 <script>
 function showCaptcha() {
     const config = {
@@ -277,33 +231,18 @@ function showCaptcha() {
 </script>
 ```
 
-#### 方式二：使用 CDN load.min.js 加载器
+#### 使用 Django Form Widget
 
-```html
-<div id="captcha-box"></div>
-<script src="load.min.js"></script>
-<script>
-function showCaptcha() {
-    const config = {
-        requestCaptchaDataUrl: "/captcha/generate",
-        validCaptchaUrl: "/captcha/check",
-        bindEl: "#captcha-box",
-        validSuccess: (res, c, tac) => {
-            tac.destroyWindow();
-            console.log("验证成功", res);
-        },
-        validFail: (res, c, tac) => {
-            tac.reloadCaptcha();
-        }
-    };
-    window.initTAC("./tac", config).then(tac => {
-        tac.init();
-    });
-}
-</script>
+本包提供了 Django Form Widget，可直接在表单中使用：
+
+```python
+from django_tianai_captcha.forms import CaptchaWidget
+
+class MyForm(forms.Form):
+    captcha = forms.CharField(widget=CaptchaWidget(captcha_type='SLIDER'))
 ```
 
-> **注意**：CDN 方式的 load.min.js 会加密轨迹数据为 `drives` 字段，可能导致校验失败。推荐使用方式一（本地构建 SDK）。
+Widget 会自动渲染验证码 HTML 并加载内置 SDK。
 
 ### 6. 在代码中使用
 
@@ -324,7 +263,7 @@ is_valid = app.secondary_verification(token)
 
 ## Demo 测试平台
 
-项目内置了一个 Django Demo 项目，可用于快速测试验证码效果：
+项目内置了 Django Demo 项目，可用于快速测试验证码效果：
 
 ```bash
 # 安装依赖
@@ -372,21 +311,27 @@ django_tianai_captcha/
 │   └── provider.py          # 资源提供者
 ├── resources/               # 内置资源文件
 │   └── META-INF/cut-image/  # 背景图、模板、字体
-├── templates/               # Django 模板
-└── static/                  # 静态文件
+├── static/                  # 内置前端 SDK
+│   └── django_tianai_captcha/tac/
+│       ├── js/tac.min.js    # tianai-captcha-web-sdk
+│       ├── css/tac.css      # SDK 样式
+│       └── images/icon.png  # SDK 图标
+└── templates/               # Django 模板
+    └── django_tianai_captcha/
+        └── widget.html      # Form Widget 模板
 ```
 
-## 与 Java 版本的差异
+## 内置前端资源
 
-| 特性 | Java 版 | Django 版 |
-|------|---------|-----------|
-| 图像处理 | Java2D (Graphics2D) | Pillow (PIL) |
-| 缓存后端 | Map / Redis | LocalMemory / Redis |
-| 字体大小 | FontWrapper (动态缩放) | 按 bgWidth/600 比例缩放 |
-| 文字点选布局 | Block 网格布局 | 随机非重叠布局 |
-| 旋转混淆 | 支持 obfuscate | 暂不支持 |
-| 滑块混淆 | 支持滑块凹槽混淆 | 暂不支持 |
-| 文字点选顺序校验 | 支持 checkOrder 开关 | 严格按顺序校验 |
+本包内置了 tianai-captcha-web-sdk 的构建产物，位于 `static/django_tianai_captcha/tac/` 目录下：
+
+| 文件 | 说明 |
+|------|------|
+| `js/tac.min.js` | 验证码 SDK（约 42KB） |
+| `css/tac.css` | SDK 样式表（约 7KB） |
+| `images/icon.png` | 刷新按钮图标 |
+
+通过 Django 的 `{% static %}` 模板标签引用即可，无需手动下载或构建。
 
 ## 许可证
 
