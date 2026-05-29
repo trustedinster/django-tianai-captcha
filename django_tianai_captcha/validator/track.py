@@ -41,15 +41,14 @@ class BasicCaptchaTrackValidator:
             track_data: 前端传来的轨迹数据，包含：
                 - bgImageWidth: 背景图宽度
                 - bgImageHeight: 背景图高度
-                - startTime: 开始时间
-                - stopTime: 结束时间
+                - startTime / startSlidingTime: 开始时间
+                - stopTime / endSlidingTime: 结束时间
                 - trackList: 轨迹点列表，每个点包含 x, y, t, type
             captcha_type: 验证码类型
 
         Returns:
             bool: 轨迹是否正常
         """
-        # 仅对滑块类验证码进行轨迹校验
         if captcha_type not in (SLIDER, CONCAT):
             return True
 
@@ -62,13 +61,38 @@ class BasicCaptchaTrackValidator:
             return False
 
         bg_width = track_data.get("bgImageWidth", 590)
-        start_time = track_data.get("startTime", 0)
-        stop_time = track_data.get("stopTime", 0)
 
-        # 过滤非移动轨迹
+        start_time = (
+            track_data.get("startTime")
+            or track_data.get("startSlidingTime")
+            or 0
+        )
+        stop_time = (
+            track_data.get("stopTime")
+            or track_data.get("endSlidingTime")
+            or 0
+        )
+
+        if isinstance(start_time, str):
+            try:
+                import datetime
+                dt = datetime.datetime.fromisoformat(start_time.replace("Z", "+00:00"))
+                start_time = dt.timestamp() * 1000
+            except (ValueError, AttributeError):
+                start_time = 0
+        if isinstance(stop_time, str):
+            try:
+                import datetime
+                dt = datetime.datetime.fromisoformat(stop_time.replace("Z", "+00:00"))
+                stop_time = dt.timestamp() * 1000
+            except (ValueError, AttributeError):
+                stop_time = 0
+
         move_tracks = [t for t in track_list if t.get("type") in ("MOVE", "move", None)]
         if not move_tracks:
             move_tracks = track_list
+
+        move_tracks = self._normalize_tracks(move_tracks)
 
         # 1. 滑动时间检查
         slide_time = stop_time - start_time
@@ -124,6 +148,46 @@ class BasicCaptchaTrackValidator:
 
         return True
 
+    @staticmethod
+    def _normalize_tracks(move_tracks):
+        """
+        归一化轨迹坐标。
+
+        将轨迹坐标转换为相对于起始点的偏移量。
+        tianai-captcha-web-sdk 在 common.js 中已经做了 pageX - startX 的归一化，
+        但部分集成场景可能传入绝对坐标（如页面坐标或元素内坐标）。
+        此方法确保无论前端传入何种坐标系，校验逻辑都能正确工作。
+
+        归一化逻辑：
+        - 取第一个轨迹点的 (x, y) 作为原点偏移量
+        - 所有轨迹点的 (x, y) 减去该偏移量
+        - 时间戳 t 保持不变
+
+        Args:
+            move_tracks: 移动轨迹点列表
+
+        Returns:
+            list: 归一化后的轨迹点列表（新列表，不修改原始数据）
+        """
+        if not move_tracks:
+            return move_tracks
+
+        first = move_tracks[0]
+        offset_x = first.get("x", 0)
+        offset_y = first.get("y", 0)
+
+        if offset_x == 0 and offset_y == 0:
+            return move_tracks
+
+        normalized = []
+        for track in move_tracks:
+            new_track = dict(track)
+            new_track["x"] = track.get("x", 0) - offset_x
+            new_track["y"] = track.get("y", 0) - offset_y
+            normalized.append(new_track)
+
+        return normalized
+
     def _check_deceleration(self, move_tracks):
         """
         检查减速特征。
@@ -140,20 +204,17 @@ class BasicCaptchaTrackValidator:
         if len(move_tracks) < 5:
             return True
 
-        # 计算分割点
         split_index = int(len(move_tracks) * 0.7)
 
         if split_index < 2 or split_index >= len(move_tracks) - 1:
             return True
 
-        # 计算前 70% 的平均速度
         first_part = move_tracks[:split_index]
         second_part = move_tracks[split_index:]
 
         first_avg_speed = self._calc_avg_speed(first_part)
         second_avg_speed = self._calc_avg_speed(second_part)
 
-        # 后 30% 的速度应该比前 70% 慢
         if first_avg_speed > 0 and second_avg_speed > first_avg_speed * 2:
             return False
 
